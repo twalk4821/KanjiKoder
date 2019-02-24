@@ -1,0 +1,165 @@
+package tylerwalker.io.kanjireader
+
+import android.content.Context
+import android.graphics.*
+import android.util.AttributeSet
+import android.util.Log
+import android.view.DragEvent
+import android.view.View
+import kotlin.math.roundToInt
+import android.content.ClipData
+import android.support.v4.view.ViewCompat.startDragAndDrop
+import android.util.DisplayMetrics
+import android.view.MotionEvent
+
+
+class SlidingWindow(context: Context, attrs: AttributeSet): View(context, attrs) {
+    companion object {
+        private const val RECT_SIZE = 40F
+    }
+
+    private val rect = RectF()
+
+    var decodeSize = PointF(1F, 1F)
+        set(value) {
+            field = value
+            invalidate()
+        }
+    var previewSize = PointF(1F,1F)
+        set(value) {
+            field = value
+            invalidate()
+        }
+    var screenSize = PointF(1F,1F)
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    private fun PointF.toPreviewPixels() = PointF(x * (previewSize.x / decodeSize.x), y * (previewSize.y / decodeSize.y))
+    private fun PointF.toDecodePixels() = PointF(x * (decodeSize.x / previewSize.x), y * (decodeSize.y / previewSize.y))
+    private fun PointF.toScreenPixels() = PointF(x * (screenSize.x / previewSize.x), y * (screenSize.y / previewSize.y))
+    private fun PointF.screenPixelsToPreviewPixels() = PointF(x * (previewSize.x / screenSize.x), y * (previewSize.y / screenSize.y))
+
+    private fun PointF.snapToDecodeGrid(): PointF =
+            screenPixelsToPreviewPixels()
+                    .toDecodePixels().run {
+                        var decodeX = x.roundToInt().toFloat()
+                        var decodeY = y.roundToInt().toFloat()
+
+                        if (decodeX < 0) decodeX = 0F
+                        if (decodeY < 0) decodeY = 0F
+                        if (decodeX >= decodeSize.x - RECT_SIZE) decodeX = decodeSize.x - RECT_SIZE - 1
+                        if (decodeY >= decodeSize.y - RECT_SIZE) decodeY = decodeSize.y - RECT_SIZE - 1
+
+                        log("decode position: $decodeX, $decodeY")
+
+                        x = decodeX
+                        y = decodeY
+
+                        toPreviewPixels()
+                                .toScreenPixels()
+            }
+
+    private fun getDrawnSize(): PointF =
+        PointF(RECT_SIZE, RECT_SIZE).toPreviewPixels().toScreenPixels()
+
+    fun getDecodeRect(): RectF = rect.apply {
+        val decodePosition = drawPosition.screenPixelsToPreviewPixels().toDecodePixels()
+        val decodeSize = PointF(RECT_SIZE, RECT_SIZE)
+
+        left = decodePosition.x
+        top = decodePosition.y
+        right = left + decodeSize.x
+        bottom = top + decodeSize.y
+    }
+
+    val paint = Paint().apply {
+        color = Color.RED
+        style = Paint.Style.STROKE
+        strokeWidth = 10F
+    }
+
+    private var startingPosition = PointF(0F, 0F)
+    private var dragStart = PointF(0F, 0F)
+    private var drawPosition = PointF(0F, 0F)
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    init {
+        setOnLongClickListener {
+            val data = ClipData.newPlainText("", "")
+            val shadowBuilder = TransparentShadowBuilder()
+            startDragAndDrop(data, shadowBuilder, it, 0)
+            true
+        }
+    }
+
+    override fun onDragEvent(event: DragEvent): Boolean =
+        when (event.action) {
+            DragEvent.ACTION_DRAG_STARTED -> {
+                startingPosition.x = drawPosition.x
+                startingPosition.y = drawPosition.y
+
+                dragStart.x = event.x
+                dragStart.y = event.y
+
+                true
+            }
+            DragEvent.ACTION_DROP -> {
+                val translation = PointF(
+                        event.x - dragStart.x,
+                        event.y - dragStart.y)
+
+                drawPosition.x = startingPosition.x + translation.x
+                drawPosition.y = startingPosition.y + translation.y
+
+                drawPosition = drawPosition.snapToDecodeGrid()
+
+                true
+            }
+            DragEvent.ACTION_DRAG_LOCATION -> {
+                val translation = PointF(
+                        event.x - dragStart.x,
+                        event.y - dragStart.y)
+
+                drawPosition.x = startingPosition.x + translation.x
+                drawPosition.y = startingPosition.y + translation.y
+
+                drawPosition = drawPosition.snapToDecodeGrid()
+
+                true
+            }
+            else -> super.onDragEvent(event)
+        }
+
+    override fun onDraw(canvas: Canvas) {
+        val drawSize = getDrawnSize()
+
+        with (canvas) {
+            save()
+            translate(drawPosition.x, drawPosition.y)
+            drawRect(0F, 0F, drawSize.x, drawSize.y, paint)
+            restore()
+        }
+    }
+
+    override fun onTouchEvent(event: MotionEvent?): Boolean {
+        super.onTouchEvent(event)
+        return false
+    }
+
+    private fun log(message: String) {
+        Log.d("SlidingWindow", message)
+    }
+
+    inner class TransparentShadowBuilder : View.DragShadowBuilder() {
+
+        override fun onProvideShadowMetrics(outShadowSize: Point, outShadowTouchPoint: Point) {
+            outShadowSize.set(1, 1)
+            outShadowTouchPoint.set(0, 0)
+        }
+    }
+}

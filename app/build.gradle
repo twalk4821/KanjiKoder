@@ -27,6 +27,15 @@ android {
         sourceCompatibility 1.8
         targetCompatibility 1.8
     }
+
+    aaptOptions {
+        noCompress "tflite"
+        noCompress "lite"
+    }
+
+    dexOptions {
+        javaMaxHeapSize "8g"
+    }
 }
 
 dependencies {
@@ -54,10 +63,9 @@ dependencies {
     // rxAndroid
     implementation "io.reactivex.rxjava2:rxandroid:$rootProject.ext.rx_android_version"
 
-    // ARCore
-    implementation "com.google.ar:core:$ar_core_version"
-
-    // Provides ArFragment, and other UX resources.
-    implementation "com.google.ar.sceneform.ux:sceneform-ux:$ar_core_version"
     compile project(path: ':openCVLibrary341')
+
+    // tflite
+//    implementation 'org.tensorflow:tensorflow-lite:+'
+    implementation 'org.tensorflow:tensorflow-lite:1.12.0'
 }

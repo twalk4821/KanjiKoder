@@ -2,9 +2,11 @@ package tylerwalker.io.kanjireader
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.pm.PackageManager
+import android.graphics.Camera
 import android.graphics.ImageFormat
 import android.graphics.ImageFormat.YUV_420_888
+import android.graphics.PointF
+import android.graphics.Rect
 import android.hardware.camera2.*
 import android.hardware.camera2.CameraDevice.TEMPLATE_PREVIEW
 import android.media.ImageReader
@@ -16,25 +18,56 @@ import android.view.Surface
 import android.view.SurfaceHolder
 import android.widget.Button
 import android.widget.Toast
-import com.google.ar.core.ArCoreApk
-import com.google.ar.core.ArCoreApk.InstallStatus.*
-import com.google.ar.core.Session
-import com.google.ar.core.exceptions.UnavailableUserDeclinedInstallationException
 import kotlinx.android.synthetic.main.activity_main.*
 import org.opencv.core.Mat
 import org.opencv.android.LoaderCallbackInterface
 import org.opencv.android.BaseLoaderCallback
 import org.opencv.android.OpenCVLoader
+import org.tensorflow.lite.Interpreter
 import java.lang.IndexOutOfBoundsException
+import java.nio.ByteBuffer
+import java.nio.FloatBuffer
+import java.nio.ByteOrder.nativeOrder
+import kotlin.math.log
+import android.hardware.camera2.CaptureRequest
+import android.support.v4.view.MotionEventCompat.getPointerCount
+import android.hardware.camera2.CameraCharacteristics
+import android.system.Os.close
+import android.util.AttributeSet
+import android.util.Log
+import android.view.MotionEvent
+import android.view.View
+import kotlinx.android.synthetic.main.activity_main.view.*
+import tylerwalker.io.kanjireader.R.id.*
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import kotlin.math.roundToInt
 
-typealias PixelArray = MutableList<MutableList<Int>>
+
+typealias PixelArray = MutableList<Long>
+typealias Prediction = Pair<Int, Float>
+typealias SoftmaxArray = FloatArray
 
 @ExperimentalUnsignedTypes
 class MainActivity : AppCompatActivity() {
-    var arSession: Session? = null
     private var userRequestedInstall: Boolean = true
+    lateinit var camera: CameraDevice
     private lateinit var cameraManager: CameraManager
+    lateinit var cameraCharacteristics: CameraCharacteristics
+    lateinit var captureSession: CameraCaptureSession
+    lateinit var previewRequestBuilder: CaptureRequest.Builder
+    lateinit var captureCallback: CameraCaptureSession.StateCallback
+
+    //Zooming
+    var fingerSpacing: Float = 0F
+    var zoomLevel: Float = 1F
+    private var maximumZoomLevel: Float = 1F
+    private var zoom: Rect = Rect()
+
     lateinit var imageReader: ImageReader
+    lateinit var interpreter: Interpreter
+    lateinit var imgData: ByteBuffer
+    private var labelProbArray: LongArray? = null
 
     lateinit var previewSurface: Surface
     lateinit var recordingSurface: Surface
@@ -44,9 +77,40 @@ class MainActivity : AppCompatActivity() {
     lateinit var previewSize: Size
     lateinit var decodeSize: Size
 
+    lateinit var slidingWindow: SlidingWindow
+
+    lateinit var kanji: Array<Kanji>
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        BufferedReader(InputStreamReader(assets.open("data.txt"))).let { reader ->
+            val list = mutableListOf<Kanji>()
+            var keepGoing = true
+            while (keepGoing) {
+                val line = reader.readLine()
+                if (line == null) {
+                    keepGoing = false
+                } else {
+                    val elements = line.split(";").map { it.replace("'", "")}
+                    val k = Kanji(
+                            character = elements[0],
+                            id = elements[1].toInt(),
+                            strokeCount = elements[2].toInt(),
+                            grade = elements[3],
+                            radical = elements[4],
+                            onReading = elements[5],
+                            kunReading = elements[6],
+                            nanoriReading = elements[7],
+                            meaning = elements[8],
+                            label = elements[9].toInt()
+                    )
+                    list.add(k)
+                }
+            }
+            kanji = list.toTypedArray()
+        }
 
         cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
 
@@ -57,13 +121,30 @@ class MainActivity : AppCompatActivity() {
 
             if (isStreamingData) {
                 isStreamingData = false
-                it.text = "Start Stream"
+                it.text = "Decode"
             } else {
                 isStreamingData = true
-                it.text = "Stop Stream"
+                it.text = "Stop Decode"
             }
         }
 
+        try {
+            interpreter = Interpreter(loadModelFile("model.tflite"), object: Interpreter.Options() {
+                override fun setAllowFp16PrecisionForFp32(allow: Boolean): Interpreter.Options {
+                    return super.setAllowFp16PrecisionForFp32(true)
+                }
+
+                override fun setUseNNAPI(useNNAPI: Boolean): Interpreter.Options {
+                    return super.setUseNNAPI(true)
+                }
+
+            })
+            imgData = ByteBuffer.allocateDirect(4 * 40 * 40).apply { order(nativeOrder()) }
+            labelProbArray = LongArray(1)
+
+        } catch (e: Throwable) {
+            log("$e", true)
+        }
     }
 
     override fun onResume() {
@@ -82,6 +163,59 @@ class MainActivity : AppCompatActivity() {
             log("OpenCV library found inside package. Using it!")
             mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS)
         }
+
+        slidingWindow = findViewById(R.id.slidingWindow)
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        try {
+            val rect = cameraCharacteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE)
+                    ?: return false
+            val currentFingerSpacing: Float
+
+            if (event.pointerCount == 2) { //Multi touch.
+                currentFingerSpacing = event.getFingerSpacing()
+                var delta = 0.05f //Control this value to control the zooming sensibility
+                if (fingerSpacing != 0F) {
+                    if (currentFingerSpacing > fingerSpacing) { //Don't over zoom-in
+                        if (maximumZoomLevel - zoomLevel <= delta) {
+                            delta = maximumZoomLevel - zoomLevel
+                        }
+                        zoomLevel += delta
+                    } else if (currentFingerSpacing < fingerSpacing) { //Don't over zoom-out
+                        if (zoomLevel - delta < 1f) {
+                            delta = zoomLevel - 1f
+                        }
+                        zoomLevel -= delta
+                    }
+                    val ratio = 1.toFloat() / zoomLevel //This ratio is the ratio of cropped Rect to Camera's original(Maximum) Rect
+                    //croppedWidth and croppedHeight are the pixels cropped away, not pixels after cropped
+                    val croppedWidth = rect.width() - Math.round(rect.width() * ratio)
+                    val croppedHeight = rect.height() - Math.round(rect.height() * ratio)
+                    //Finally, zoom represents the zoomed visible area
+                    zoom = Rect(croppedWidth / 2, croppedHeight / 2,
+                            rect.width() - croppedWidth / 2, rect.height() - croppedHeight / 2)
+                    previewRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoom)
+                }
+                fingerSpacing = currentFingerSpacing
+            } else { //Single touch point, needs to return true in order to detect one more touch point
+                return true
+            }
+
+            captureSession.setRepeatingRequest(previewRequestBuilder.build(), object: CameraCaptureSession.CaptureCallback() {}, Handler { true })
+
+            return true
+        } catch (e: Exception) {
+            //Error handling up to you
+            return true
+        }
+
+    }
+
+    private fun MotionEvent.getFingerSpacing(): Float {
+        val x = getX(0) - getX(1)
+        val y = getY(0) - getY(1)
+        return Math.sqrt((x * x + y * y).toDouble()).toFloat()
     }
 
     @SuppressLint("MissingPermission")
@@ -100,11 +234,17 @@ class MainActivity : AppCompatActivity() {
                 override fun onDisconnected(p0: CameraDevice) { log("onDisconnected()") }
                 override fun onError(p0: CameraDevice, p1: Int) { log("onError()") }
 
-                override fun onOpened(camera: CameraDevice) {
+                override fun onOpened(cam: CameraDevice) {
                     log("onOpened()")
-
-                    val cameraCharacteristics = getCameraCharacteristics(camera.id)
+                    camera = cam
+                    cameraCharacteristics = getCameraCharacteristics(camera.id)
                     val configMap = cameraCharacteristics[CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP]
+
+                    cameraCharacteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM)?.let {
+                        maximumZoomLevel = it * 10
+                    }
+
+
 
                     if (configMap == null) {
                         toast("Could not configure your camera for use with this application.")
@@ -121,39 +261,73 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     /* Beautiful preview */
-                    previewSize = yuvSizes.first()
-                    decodeSize = yuvSizes.getDecodeSize()
+                    previewSize = yuvSizes.last()
+                    decodeSize = yuvSizes.last()
+
+                    slidingWindow.decodeSize = PointF(decodeSize.width.toFloat(), decodeSize.height.toFloat())
+                    slidingWindow.previewSize = PointF(previewSize.width.toFloat(), previewSize.height.toFloat())
+                    slidingWindow.screenSize = PointF(slidingWindow.height.toFloat(), slidingWindow.width.toFloat())
 
                     log("decode size:, width: ${decodeSize.width}, height: ${decodeSize.height}")
+                    log("preview size:, width: ${previewSize.width}, height: ${previewSize.height}")
 
-                    surfaceView.holder.setFixedSize(previewSize.width, previewSize.height)
+                    val displayRotation = windowManager.defaultDisplay.rotation
+                    val swappedDimensions = areDimensionsSwapped(displayRotation = displayRotation)
+
+                    val rotatedPreviewWidth = if (swappedDimensions) previewSize.height else previewSize.width
+                    val rotatedPreviewHeight = if (swappedDimensions) previewSize.width else previewSize.height
+
+                    surfaceView.holder.setFixedSize(rotatedPreviewWidth, rotatedPreviewHeight)
 
                     // Configure Image Reader
-                    imageReader = ImageReader.newInstance(decodeSize.width, decodeSize.height, YUV_420_888, 2)
+                    imageReader = ImageReader.newInstance(rotatedPreviewWidth, rotatedPreviewHeight, YUV_420_888, 2)
                     imageReader.setOnImageAvailableListener(decodeImageToPixels, Handler { true })
 
                     previewSurface = surfaceView.holder.surface
                     recordingSurface = imageReader.surface
 
 
-                    camera.createCaptureSession(mutableListOf(previewSurface, recordingSurface), object : CameraCaptureSession.StateCallback() {
+                    captureCallback = object : CameraCaptureSession.StateCallback() {
                         override fun onConfigureFailed(session: CameraCaptureSession) { log("onConfigureFailed()") }
 
                         override fun onConfigured(session: CameraCaptureSession) {
                             log("onConfigured()")
 
-                            val captureRequest = camera.createCaptureRequest(TEMPLATE_PREVIEW).run {
+                            previewRequestBuilder = camera.createCaptureRequest(TEMPLATE_PREVIEW).apply {
                                 addTarget(recordingSurface)
                                 addTarget(previewSurface)
-                                build()
                             }
 
-                            session.setRepeatingRequest(captureRequest, object: CameraCaptureSession.CaptureCallback() {}, Handler { true })
+                            session.setRepeatingRequest(previewRequestBuilder.build(), object: CameraCaptureSession.CaptureCallback() {}, Handler { true })
+
+                            captureSession = session
                         }
-                    }, Handler { true })
+                    }
+
+                    camera.createCaptureSession(mutableListOf(previewSurface, recordingSurface), captureCallback, Handler { true })
                 }
             }, Handler { true })
         }
+    }
+
+    private fun areDimensionsSwapped(displayRotation: Int): Boolean {
+        var swappedDimensions = false
+        when (displayRotation) {
+            Surface.ROTATION_0, Surface.ROTATION_180 -> {
+                if (cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) == 90 || cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) == 270) {
+                    swappedDimensions = true
+                }
+            }
+            Surface.ROTATION_90, Surface.ROTATION_270 -> {
+                if (cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) == 0 || cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) == 180) {
+                    swappedDimensions = true
+                }
+            }
+            else -> {
+                log("Display rotation is invalid: $displayRotation")
+            }
+        }
+        return swappedDimensions
     }
 
     /**
@@ -170,7 +344,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun Array<Size>.getDecodeSize(): Size {
-        var offset = 5
+        var offset = 10
         var decodeSize: Size? = null
 
         while (decodeSize == null) {
@@ -185,6 +359,7 @@ class MainActivity : AppCompatActivity() {
      * Decode image to [PixelArray]
      */
     private val decodeImageToPixels = ImageReader.OnImageAvailableListener { imageReader ->
+
         imageReader.acquireLatestImage()?.apply {
             try {
                 val rgbaMat = toMat_RGBA()
@@ -192,20 +367,34 @@ class MainActivity : AppCompatActivity() {
                 if (isStreamingData) {
                     log("start decode: ${rgbaMat.size()}")
 
-                    val pixelArray = rgbaMat.decodeRGBAToBinary().rotate()
+                    val binary = rgbaMat.decodeRGBAToBinary()
+                    val rotated = binary.rotate(decodeSize.width)
+                    val cropped = rotated.cropToWindow()
 
-                    for (row in pixelArray) {
-                        log(row.joinToString(""))
-                    }
+                    cropped.print()
+
+                    cropped.unwindToByteBuffer()
+                    val output = arrayOf(FloatArray(2679))
+
+                    interpreter.run(imgData, output)
+
+                    val predictions = getTop10Predictions(output = output[0], shouldPrint = true)
+                    val (prediction, likelihood) = predictions[0]
+                    val topPrediction = getKanji(prediction)
+                    log("top prediction: ${topPrediction}")
+
+                    character_text.text = "Kanji: ${topPrediction?.character}"
+                    meaning_text.text = "Meaning: ${topPrediction?.meaning}"
+                    likelihood_text.text = "Likelihood: $likelihood"
 
                     isStreamingData = false
-                    startStream.text = "Start Stream"
+                    startStream.text = "Decode"
 
                     log("end decode")
                 }
             } catch (e: Throwable) {
                 isStreamingData = false
-                startStream.text = "Start Stream"
+                startStream.text = "Decode"
                 log(e.toString())
             } finally {
                 close()
@@ -213,28 +402,153 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun PixelArray.cropToWindow(): PixelArray {
+        val map = convertToMap(decodeSize.height)
+        val decodeRect = slidingWindow.getDecodeRect()
+
+        log("decode rect: ${decodeRect.left}, ${decodeRect.top}, ${decodeRect.right}, ${decodeRect.bottom}")
+
+        val result = mutableListOf<Long>()
+
+        for (rowNumber in decodeRect.top.toInt() until decodeRect.bottom.toInt()) {
+            val row = map[rowNumber]
+            for (colNumber in decodeRect.left.toInt() until decodeRect.right.toInt()) {
+                val pixel = row[colNumber]
+                result.add(pixel)
+            }
+        }
+        return result
+    }
+
+    private fun PixelArray.compress(): PixelArray {
+        val result: PixelArray = mutableListOf()
+
+        val currentMap = convertToMap()
+
+        var row = 0
+        while (row + 1 < currentMap.size) {
+            var col = 0
+            while (col + 1 < currentMap.size) {
+                val topLeft = currentMap[row][col]
+                val topRight = currentMap[row + 1][col]
+                val bottomLeft = currentMap[row][col + 1]
+                val bottomRight = currentMap[row + 1][col + 1]
+
+                val pixel = if (topLeft + topRight + bottomLeft + bottomRight > 2) 1L else 0L
+
+                result.add(pixel)
+
+                col += 2
+            }
+            row += 2
+        }
+
+
+        return result
+    }
+
+    private fun getKanji(label: Int): Kanji? {
+        return kanji.find { it.label == label }
+    }
+
+    private fun getTop10Predictions(output: SoftmaxArray, shouldPrint: Boolean = true): List<Prediction> {
+        val predictions = mutableListOf<Prediction>()
+
+        output.forEachIndexed { index, fl ->
+            val prediction = (index + 1) to fl
+            val (currentLabel, currentLikelihood) = prediction
+
+            if (predictions.size < 10) {
+                predictions.add(prediction)
+            } else {
+                val toReplace = predictions.find {
+                    val (label, likelihood) = it
+                    likelihood < currentLikelihood
+                }
+
+                if (toReplace != null) {
+                    predictions[predictions.indexOf(toReplace)] = prediction
+                }
+            }
+        }
+
+        if (shouldPrint) {
+            predictions.forEachIndexed { index, prediction ->
+                val (label, likelihood) = prediction
+                log("Prediction #${index + 1} -- label: $label, likelihood: $likelihood")
+            }
+        }
+
+        return predictions
+    }
+
+    private fun getTop10Predictions(predictions: MutableList<Prediction>): MutableList<Prediction> {
+        return  predictions.apply {
+            sortBy {
+                it.second
+            }
+
+            subList(0, 10)
+        }
+    }
+
     /**
      * Input Mat must already be RGBA
      */
     private fun Mat.decodeRGBAToBinary(): PixelArray {
-        val mapped: PixelArray = mutableListOf()
-        for (row in 0 until decodeSize.height) {
-            mapped.add(mutableListOf())
-            for (col in 0 until decodeSize.width) {
+        val array: PixelArray = mutableListOf()
+        for (row in 0 until height()) {
+            for (col in 0 until width()) {
                 val byte = this[row, col]
-                mapped[row].add(if (byte.isBlack()) 1 else 0)
+                array.add(if (byte.isBlack()) 1L else 0L)
             }
         }
-        return mapped
+        return array
     }
 
+    private fun PixelArray.unwindToByteBuffer() {
+        imgData.rewind()
+        for (pixel in this) {
+                imgData.putFloat(pixel.toFloat())
+        }
+    }
+
+    private fun PixelArray.print(rowWidth: Int = Math.sqrt(size.toDouble()).toInt()) {
+        val numRows = size / rowWidth
+
+        for (i in 1..numRows) {
+            val startIndex = (i - 1) * rowWidth
+            val endIndex = ((i - 1) * rowWidth) + (rowWidth)
+
+            val row = subList(startIndex, endIndex)
+            log(row.joinToString(""))
+        }
+    }
+
+    private fun PixelArray.convertToMap(rowWidth: Int = Math.sqrt(size.toDouble()).toInt()): MutableList<MutableList<Long>> {
+        val map = mutableListOf<MutableList<Long>>()
+
+        val numRows = size/rowWidth
+
+        for (i in 1..numRows) {
+            val startIndex = (i - 1) * rowWidth
+            val endIndex = ((i - 1) * rowWidth) + (rowWidth)
+
+            val row = subList(startIndex, endIndex)
+            map.add(row)
+        }
+
+        return map
+    }
     /**
      * Direction of rotation is clockwise
      */
-    private fun PixelArray.rotate(): PixelArray {
-        val outputMap: PixelArray = mutableListOf()
-        val numRows = size
-        val numCols = this[0].size
+    private fun PixelArray.rotate(width: Int = Math.sqrt(size.toDouble()).toInt()): PixelArray {
+        val pixelMap = convertToMap(width)
+        val outputMap = mutableListOf<MutableList<Long>>()
+
+        val numRows = pixelMap.size
+        val numCols = pixelMap[0].size
 
         for (col in 0 until numCols) {
             outputMap.add(mutableListOf())
@@ -242,11 +556,11 @@ class MainActivity : AppCompatActivity() {
 
         for (row in numRows - 1 downTo 0) {
             for (col in numCols - 1 downTo 0) {
-                outputMap[col].add(this[row][col])
+                outputMap[col].add(pixelMap[row][col])
             }
         }
 
-        return outputMap
+        return outputMap.flatten().toMutableList()
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -274,26 +588,41 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Check if this device has a camera */
-    private fun checkCameraHardware(context: Context): Boolean =
-            context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA)
-
-    private fun requestArCoreInstall() {
-
-        try {
-            when (ArCoreApk.getInstance().requestInstall(this, userRequestedInstall)) {
-                INSTALLED -> arSession = Session(this)
-                INSTALL_REQUESTED -> { userRequestedInstall = false; return }
-                else -> {
-                    toast("ARCore Installation is needed to run this application")
-                    return
-                }
-            }
-        } catch (e: Throwable) {
-            when (e) {
-                is UnavailableUserDeclinedInstallationException -> { toast("TODO: handle exception: $e"); return }
-                else -> { toast("TODO: handle exception: $e"); return }
-            }
-        }
-    }
 }
+
+val testExample = mutableListOf<Long>(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+
+/**
+ *                     val predictions = mutableListOf<Prediction>()
+for (j in 0 until 30) {
+for (i in 0 until 30) {
+val sample = mutableListOf<Long>()
+
+val offsetDueToJ = j * 120 * 3
+val offsetDueToI = i * 4
+
+val startIndex = offsetDueToJ + offsetDueToI
+
+for (k in 0 until 40) {
+val sampleRow = rotated.subList(startIndex + (k * 120), startIndex + (k * 120) + 40)
+sample.addAll(sampleRow)
+}
+
+sample.unwindToByteBuffer()
+val output = arrayOf(FloatArray(2679))
+
+interpreter.run(imgData, output as Any)
+
+output[0].let {
+val top10 = getTop10Predictions(it, shouldPrint = false)
+val correct = top10.find { it.first == 287 }
+if (correct != null) {
+log("successful prediction: likelihood ${correct.second}")
+}
+
+predictions.addAll(top10)
+}
+}
+}
+ * */
