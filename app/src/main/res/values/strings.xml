@@ -1,3 +1,11 @@
 <resources>
-    <string name="app_name">KanjiReader</string>
+    <string name="app_name">KanjiKoder</string>
+    <string name="prediction_character_template">Kanji: %1$s</string>
+    <string name="prediction_meaning_template">Meaning: %1$s</string>
+    <string name="prediction_likelihood_template">Likelihood: %1$s</string>
+
+    <string name="prediction_confidence_weak">Confidence: Weak</string>
+    <string name="prediction_confidence_fair">Confidence: Fair</string>
+    <string name="prediction_confidence_strong">Confidence: Strong</string>
+    <string name="prediction_confidence_very_strong">Confidence: Very Strong</string>
 </resources>

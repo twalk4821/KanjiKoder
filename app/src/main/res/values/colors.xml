@@ -3,4 +3,9 @@
     <color name="colorPrimary">#008577</color>
     <color name="colorPrimaryDark">#00574B</color>
     <color name="colorAccent">#D81B60</color>
+
+    <color name="confidence_weak">#E00000</color>
+    <color name="confidence_fair">#E09900</color>
+    <color name="confidence_strong">#009999</color>
+    <color name="confidence_very_strong">#00EE00</color>
 </resources>

@@ -36,6 +36,10 @@ android {
     dexOptions {
         javaMaxHeapSize "8g"
     }
+
+    dataBinding {
+        enabled = true
+    }
 }
 
 dependencies {
