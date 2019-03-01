@@ -8,6 +8,7 @@ import android.view.DragEvent
 import android.view.View
 import kotlin.math.roundToInt
 import android.content.ClipData
+import android.support.v4.content.ContextCompat
 import android.support.v4.view.ViewCompat.startDragAndDrop
 import android.util.DisplayMetrics
 import android.view.MotionEvent
@@ -77,10 +78,21 @@ class SlidingWindow(context: Context, attrs: AttributeSet): View(context, attrs)
         bottom = top + decodeSize.y
     }
 
-    val paint = Paint().apply {
-        color = Color.RED
+    val foregroundPaint = Paint().apply {
+        color = ContextCompat.getColor(context, R.color.semi_transparent_foreground)
+        style = Paint.Style.FILL
+        xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+    }
+
+    val backgroundPaint = Paint().apply {
+        color = ContextCompat.getColor(context, R.color.semi_transparent_background)
+        style = Paint.Style.FILL
+    }
+
+    val strokePaint = Paint().apply {
+        color = ContextCompat.getColor(context, R.color.white)
         style = Paint.Style.STROKE
-        strokeWidth = 10F
+        strokeWidth = 6F
     }
 
     private var startingPosition = PointF(0F, 0F)
@@ -143,8 +155,39 @@ class SlidingWindow(context: Context, attrs: AttributeSet): View(context, attrs)
 
         with (canvas) {
             save()
+
+            // draw semi opaque background
+            drawRect(0F, 0F, screenSize.x, screenSize.y, backgroundPaint)
+
+            // draw relatively transparent foreground
             translate(drawPosition.x, drawPosition.y)
-            drawRect(0F, 0F, drawSize.x, drawSize.y, paint)
+            drawRect(0F, 0F, drawSize.x, drawSize.y, foregroundPaint)
+
+            // draw center cross
+            val cx = drawSize.x / 2F
+            val cy = drawSize.y / 2F
+            val size = 30F
+
+            drawLine(cx - size, cy, cx + size, cy, strokePaint)
+            drawLine(cx, cy - size, cx, cy + size, strokePaint)
+
+            // draw corners
+            // top left
+            drawLine(0F, 0F, 0F, 1.5F * size, strokePaint)
+            drawLine(0F, 0F, 1.5F * size, 0F, strokePaint)
+
+            // top right
+            drawLine(drawSize.x, 0F, drawSize.x, 1.5F * size, strokePaint)
+            drawLine(drawSize.x - 1.5F * size, 0F, drawSize.x, 0F, strokePaint)
+
+            // bottom left
+            drawLine(0F, drawSize.y - 1.5F * size, 0F, drawSize.y, strokePaint)
+            drawLine(0F, drawSize.y, 1.5F * size, drawSize.y, strokePaint)
+
+            // bottom right
+            drawLine(drawSize.x - 1.5F * size, drawSize.y, drawSize.x, drawSize.y, strokePaint)
+            drawLine(drawSize.x, drawSize.y, drawSize.x, drawSize.y - 1.5F * size, strokePaint)
+
             restore()
         }
     }
