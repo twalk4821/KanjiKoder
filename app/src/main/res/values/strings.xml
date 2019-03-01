@@ -8,4 +8,6 @@
     <string name="prediction_confidence_fair">Confidence: Fair</string>
     <string name="prediction_confidence_strong">Confidence: Strong</string>
     <string name="prediction_confidence_very_strong">Confidence: Very Strong</string>
+    <string name="scan_button">Scan</string>
+    <string name="camera_button_quick_scan">Quick Scan</string>
 </resources>

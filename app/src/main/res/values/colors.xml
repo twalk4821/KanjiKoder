@@ -4,8 +4,18 @@
     <color name="colorPrimaryDark">#00574B</color>
     <color name="colorAccent">#D81B60</color>
 
+    <color name="strong_red">#FF0000</color>
+    <color name="japan_red">#C70025</color>
+    <color name="cherry_blossom_pink">#FFB7C5</color>
+    <color name="serephere">#424B54</color>
+    <color name="japan_peach">#F3CECB</color>
+    <color name="light_gray">#F7F7F7</color>
+    <color name="dark_gray">#B5B2B2</color>
+
     <color name="confidence_weak">#E00000</color>
     <color name="confidence_fair">#E09900</color>
     <color name="confidence_strong">#009999</color>
     <color name="confidence_very_strong">#00EE00</color>
+
+    <color name="white">#FFFFFF</color>
 </resources>

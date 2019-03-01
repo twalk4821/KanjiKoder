@@ -132,16 +132,8 @@ class MainActivity : AppCompatActivity() {
 
         surfaceView.holder.addCallback(surfaceReadyCallback)
 
-        startStream.setOnClickListener {
-            it as Button
-
-            if (isStreamingData) {
-                isStreamingData = false
-                it.text = "Decode"
-            } else {
-                isStreamingData = true
-                it.text = "Stop Decode"
-            }
+        camera_button.setOnClickListener {
+            isStreamingData = !isStreamingData
         }
 
         try {
@@ -404,13 +396,11 @@ class MainActivity : AppCompatActivity() {
                     viewModel.likelihood.value = likelihood
 
                     isStreamingData = false
-                    startStream.text = "Decode"
 
                     log("end decode")
                 }
             } catch (e: Throwable) {
                 isStreamingData = false
-                startStream.text = "Decode"
                 log(e.toString())
             } finally {
                 close()

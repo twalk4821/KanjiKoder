@@ -11,6 +11,7 @@
         xmlns:tools="http://schemas.android.com/tools"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="@color/japan_peach"
         tools:context=".MainActivity">
 
         <android.support.constraint.ConstraintLayout
@@ -46,7 +47,7 @@
             android:layout_marginStart="8dp"
             android:layout_marginTop="8dp"
             android:layout_marginEnd="8dp"
-            app:layout_constraintBottom_toTopOf="@+id/startStream"
+            app:layout_constraintBottom_toTopOf="@+id/camera_button"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/constraintLayout">
@@ -90,17 +91,30 @@
         </android.support.constraint.ConstraintLayout>
 
 
-        <Button
-            android:id="@+id/startStream"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+        <ImageButton
+            android:id="@+id/camera_button"
+            android:background="@drawable/camera_button_background"
+            android:contentDescription="@string/scan_button"
+            android:layout_width="75dp"
+            android:layout_height="75dp"
             android:layout_marginStart="8dp"
             android:layout_marginEnd="8dp"
             android:layout_marginBottom="8dp"
-            android:text="Decode"
-            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintBottom_toTopOf="@+id/camera_button_text"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
+
+        <TextView
+            android:id="@+id/camera_button_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/camera_button_quick_scan"
+            android:textColor="@color/white"
+            android:layout_marginBottom="8dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            />
 
     </android.support.constraint.ConstraintLayout>
 </layout>
