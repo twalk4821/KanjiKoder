@@ -40,6 +40,9 @@ class SlidingWindow(context: Context, attrs: AttributeSet): View(context, attrs)
     private fun PointF.toDecodePixels() = PointF(x * (decodeSize.x / previewSize.x), y * (decodeSize.y / previewSize.y))
     private fun PointF.toScreenPixels() = PointF(x * (screenSize.x / previewSize.x), y * (screenSize.y / previewSize.y))
     private fun PointF.screenPixelsToPreviewPixels() = PointF(x * (previewSize.x / screenSize.x), y * (previewSize.y / screenSize.y))
+    private fun PointF.decodePixelsToScreen() = PointF(x * (screenSize.x / decodeSize.x), y * (screenSize.y / decodeSize.y))
+    private fun PointF.screenPixelsToDecode() = PointF(x * (previewSize.x / decodeSize.x), y * (previewSize.y / decodeSize.y))
+
 
     private fun PointF.snapToDecodeGrid(): PointF =
             screenPixelsToPreviewPixels()

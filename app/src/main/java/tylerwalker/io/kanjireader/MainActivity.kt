@@ -272,10 +272,6 @@ class MainActivity : AppCompatActivity() {
                     previewSize = yuvSizes.last()
                     decodeSize = yuvSizes.last()
 
-                    slidingWindow.decodeSize = PointF(decodeSize.width.toFloat(), decodeSize.height.toFloat())
-                    slidingWindow.previewSize = PointF(previewSize.width.toFloat(), previewSize.height.toFloat())
-                    slidingWindow.screenSize = PointF(slidingWindow.height.toFloat(), slidingWindow.width.toFloat())
-
                     log("decode size:, width: ${decodeSize.width}, height: ${decodeSize.height}")
                     log("preview size:, width: ${previewSize.width}, height: ${previewSize.height}")
 
@@ -284,6 +280,10 @@ class MainActivity : AppCompatActivity() {
 
                     val rotatedPreviewWidth = if (swappedDimensions) previewSize.height else previewSize.width
                     val rotatedPreviewHeight = if (swappedDimensions) previewSize.width else previewSize.height
+
+                    slidingWindow.decodeSize = PointF(rotatedPreviewWidth.toFloat(), rotatedPreviewHeight.toFloat())
+                    slidingWindow.previewSize = PointF(rotatedPreviewWidth.toFloat(), rotatedPreviewHeight.toFloat())
+                    slidingWindow.screenSize = PointF(slidingWindow.width.toFloat(), slidingWindow.height.toFloat())
 
                     surfaceView.holder.setFixedSize(rotatedPreviewWidth, rotatedPreviewHeight)
 
