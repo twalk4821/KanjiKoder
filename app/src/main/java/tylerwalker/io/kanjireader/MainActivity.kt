@@ -91,9 +91,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         viewModel = ViewModelProviders.of(this).get(MainViewModel::class.java).apply {
-            character.value = "???"
-            meaning.value = "???"
-            likelihood.value = 0.00F
+            moreButtonVisibility.value = View.GONE
         }
 
         binding = DataBindingUtil.setContentView<MainActivityBinding>(this, R.layout.activity_main).apply {
@@ -110,17 +108,21 @@ class MainActivity : AppCompatActivity() {
                     keepGoing = false
                 } else {
                     val elements = line.split(";").map { it.replace("'", "")}
+                            .map { it.replace("\"", "")}
+
                     val k = Kanji(
                             character = elements[0],
                             id = elements[1].toInt(),
                             strokeCount = elements[2].toInt(),
                             grade = elements[3],
                             radical = elements[4],
-                            onReading = elements[5],
-                            kunReading = elements[6],
+                            onReading = elements[5].let { if (it == "null") "" else it },
+                            kunReading = elements[6].let { if (it == "null") "" else it },
                             nanoriReading = elements[7],
                             meaning = elements[8],
-                            label = elements[9].toInt()
+                            label = elements[9].toInt(),
+                            onRomajiReading = elements[10],
+                            kunRomajiReading = elements[11]
                     )
                     list.add(k)
                 }
@@ -284,6 +286,7 @@ class MainActivity : AppCompatActivity() {
                     slidingWindow.decodeSize = PointF(rotatedPreviewWidth.toFloat(), rotatedPreviewHeight.toFloat())
                     slidingWindow.previewSize = PointF(rotatedPreviewWidth.toFloat(), rotatedPreviewHeight.toFloat())
                     slidingWindow.screenSize = PointF(slidingWindow.width.toFloat(), slidingWindow.height.toFloat())
+                    slidingWindow.initRectPosition()
 
                     surfaceView.holder.setFixedSize(rotatedPreviewWidth, rotatedPreviewHeight)
 
@@ -392,6 +395,8 @@ class MainActivity : AppCompatActivity() {
                     log("top prediction: ${topPrediction}")
 
                     viewModel.character.value = topPrediction?.character
+                    viewModel.onReading.value = topPrediction?.onReading
+                    viewModel.kunReading.value = topPrediction?.kunReading
                     viewModel.meaning.value = topPrediction?.meaning
                     viewModel.likelihood.value = likelihood
 

@@ -9,6 +9,8 @@ data class Kanji(
         val onReading: String,
         val kunReading: String,
         val nanoriReading: String,
+        val onRomajiReading: String,
+        val kunRomajiReading: String,
         val meaning: String,
         val label: Int
 ) {

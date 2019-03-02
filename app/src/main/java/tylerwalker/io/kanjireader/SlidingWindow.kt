@@ -197,6 +197,22 @@ class SlidingWindow(context: Context, attrs: AttributeSet): View(context, attrs)
         return false
     }
 
+    fun initRectPosition() {
+        drawPosition = drawPosition.apply {
+            x = screenSize.x / 2F
+            y = screenSize.y / 2F
+        }.run {
+            screenPixelsToPreviewPixels()
+                    .toDecodePixels()
+        }.run {
+            x -= (RECT_SIZE / 2F)
+            y -= (RECT_SIZE)
+
+            toPreviewPixels()
+                    .toScreenPixels()
+        }
+    }
+
     private fun log(message: String) {
         Log.d("SlidingWindow", message)
     }

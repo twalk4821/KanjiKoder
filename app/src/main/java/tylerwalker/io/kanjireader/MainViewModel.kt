@@ -4,9 +4,12 @@ import android.app.Application
 import android.arch.lifecycle.AndroidViewModel
 import android.arch.lifecycle.MediatorLiveData
 import android.arch.lifecycle.MutableLiveData
+import android.view.View
 
 class MainViewModel(val app: Application): AndroidViewModel(app) {
     val character = MutableLiveData<String>()
+    val kunReading = MutableLiveData<String>()
+    val onReading = MutableLiveData<String>()
     val meaning = MutableLiveData<String>()
     val likelihood = MutableLiveData<Float>()
 
@@ -18,10 +21,50 @@ class MainViewModel(val app: Application): AndroidViewModel(app) {
         }
     }
 
+    val predictionReadingsText = MediatorLiveData<String>().apply {
+        var lastOnReading: String? = null
+        var lastKunReading: String? = null
+
+        addSource(onReading) {
+            it?.let {
+                if (it.isNotEmpty()) {
+                    lastOnReading = it
+
+                    val firstOnReading = it.split(",")[0]
+
+                    lastKunReading?.let {
+                        val firstKunReading = it.split(",")[0]
+
+                        postValue("$firstOnReading, $firstKunReading")
+                    } ?: run {
+                        postValue(firstOnReading)
+                    }
+                }
+            }
+        }
+
+        addSource(kunReading) {
+            it?.let {
+                lastKunReading = it
+
+                if (it.isNotEmpty()) {
+                    val firstKunReading = it.split(",")[0]
+
+                    lastOnReading?.let {
+                        val firstOnReading = it.split(",")[0]
+
+                        postValue("$firstOnReading, $firstKunReading")
+                    } ?: run {
+                        postValue(firstKunReading)
+                    }
+                }
+            }
+        }
+    }
     val predictionMeaningText = MediatorLiveData<String>().apply {
         addSource(meaning) {
             it?.let { predictedMeaning ->
-                value = app.getString(R.string.prediction_meaning_template, predictedMeaning)
+                value = predictedMeaning.capitalize()
             }
         }
     }
@@ -59,5 +102,19 @@ class MainViewModel(val app: Application): AndroidViewModel(app) {
                 }
             }
         }
+    }
+
+    val moreButtonVisibility = MediatorLiveData<Int>().apply {
+        addSource(character) {
+            it?.let {
+                postValue(View.VISIBLE)
+            } ?: run {
+                postValue(View.GONE)
+            }
+        }
+    }
+
+    fun getDetailsForEntry() {
+
     }
 }
