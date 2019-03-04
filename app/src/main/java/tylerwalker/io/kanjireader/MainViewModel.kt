@@ -114,7 +114,7 @@ class MainViewModel(val app: Application): AndroidViewModel(app) {
         }
     }
 
-    fun getDetailsForEntry() {
+    fun goToDictionary() { navigationProcessor.onNext(NavigationEvent.Dictionary) }
+    fun goToMain() { navigationProcessor.onNext(NavigationEvent.Main) }
 
-    }
 }

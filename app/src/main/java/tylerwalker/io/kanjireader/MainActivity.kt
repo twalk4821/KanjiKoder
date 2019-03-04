@@ -3,6 +3,7 @@ package tylerwalker.io.kanjireader
 import android.annotation.SuppressLint
 import android.arch.lifecycle.ViewModelProviders
 import android.content.Context
+import android.content.Intent
 import android.databinding.DataBindingUtil
 import android.graphics.Camera
 import android.graphics.ImageFormat
@@ -39,7 +40,12 @@ import android.util.AttributeSet
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
+import io.reactivex.disposables.CompositeDisposable
 import kotlinx.android.synthetic.main.activity_main.view.*
+import tylerwalker.io.kanjireader.DictionaryActivity.Companion.KANJI_KEY
+import tylerwalker.io.kanjireader.DictionaryActivity.Companion.KUN_KEY
+import tylerwalker.io.kanjireader.DictionaryActivity.Companion.MEANING_KEY
+import tylerwalker.io.kanjireader.DictionaryActivity.Companion.ON_KEY
 import tylerwalker.io.kanjireader.R.id.*
 import tylerwalker.io.kanjireader.databinding.MainActivityBinding
 import java.io.BufferedReader
@@ -86,6 +92,8 @@ class MainActivity : AppCompatActivity() {
 
     lateinit var viewModel: MainViewModel
     lateinit var binding: MainActivityBinding
+
+    private var compositeDisposable = CompositeDisposable()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -155,6 +163,21 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Throwable) {
             log("$e", true)
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+
+        compositeDisposable.add(navigationFlowable.subscribe {
+            when (it) {
+                NavigationEvent.Dictionary -> startActivity(Intent(this, DictionaryActivity::class.java).apply {
+                    putExtra(KANJI_KEY, viewModel.character.value)
+                    putExtra(ON_KEY, viewModel.onReading.value)
+                    putExtra(KUN_KEY, viewModel.kunReading.value)
+                    putExtra(MEANING_KEY, viewModel.meaning.value)
+                })
+            }
+        })
     }
 
     override fun onResume() {
@@ -599,5 +622,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onStop() {
+        super.onStop()
+
+        compositeDisposable.clear()
+        compositeDisposable = CompositeDisposable()
+    }
 }
 

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layout xmlns:app="http://schemas.android.com/apk/res-auto">
     <data class="MainActivityBinding">
+        <import type="tylerwalker.io.kanjireader.NavigationEvent" />
         <variable
             name="viewModel"
             type="tylerwalker.io.kanjireader.MainViewModel" />
@@ -90,8 +91,9 @@
                 android:text="@string/more"
                 android:textColor="@color/dark_gray"
                 android:clickable="true"
-                android:onClick="@{view -> viewModel.getDetailsForEntry()}"
+                android:onClick="@{view -> viewModel.goToDictionary()}"
                 android:visibility="@{viewModel.moreButtonVisibility}"
+                android:layout_marginBottom="8dp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/meaning_text"
