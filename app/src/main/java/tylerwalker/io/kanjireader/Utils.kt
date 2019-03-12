@@ -70,6 +70,7 @@ fun Image.toMat_RGBA(): Mat {
 }
 
 fun DoubleArray.isBlack(): Boolean = get(0) < 75 && get(1) < 75 && get(2) < 75
+fun DoubleArray.isWhite(): Boolean = get(0) > 200 && get(1) > 200 && get(2) > 200
 
 fun Boolean.toInt(): Int = if (this) 1 else 0
 

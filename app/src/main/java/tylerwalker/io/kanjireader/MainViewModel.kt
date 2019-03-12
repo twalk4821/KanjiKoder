@@ -12,6 +12,16 @@ class MainViewModel(val app: Application): AndroidViewModel(app) {
     val onReading = MutableLiveData<String>()
     val meaning = MutableLiveData<String>()
     val likelihood = MutableLiveData<Float>()
+    val decodeMode = MutableLiveData<DecodeMode>()
+    val decodeModeButtonText = MediatorLiveData<String>().apply {
+        addSource(decodeMode) {
+            if (it === DecodeMode.Inverted) {
+                postValue("Switch to normal mode")
+            } else {
+                postValue("Switch to inverted mode")
+            }
+        }
+    }
 
     val predictionCharacterText = MediatorLiveData<String>().apply {
         addSource(character) {
@@ -116,5 +126,10 @@ class MainViewModel(val app: Application): AndroidViewModel(app) {
 
     fun goToDictionary() { navigationProcessor.onNext(NavigationEvent.Dictionary) }
     fun goToMain() { navigationProcessor.onNext(NavigationEvent.Main) }
-
+    fun toggleInvertedMode() { decodeMode.value.let {
+        when (it) {
+            DecodeMode.Normal -> decodeMode.postValue(DecodeMode.Inverted)
+            else -> decodeMode.postValue(DecodeMode.Normal)
+        }
+    }}
 }

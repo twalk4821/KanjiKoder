@@ -11,3 +11,10 @@ sealed class NavigationEvent {
 
 val navigationProcessor = PublishProcessor.create<NavigationEvent>().toSerialized()
 val navigationFlowable = navigationProcessor as Flowable<NavigationEvent>
+
+// decode settings
+// whether to decode black (Normal) or white (Inverted) writing
+sealed class DecodeMode {
+    object Normal: DecodeMode()
+    object Inverted: DecodeMode()
+}

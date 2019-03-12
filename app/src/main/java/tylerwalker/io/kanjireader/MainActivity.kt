@@ -1,6 +1,7 @@
 package tylerwalker.io.kanjireader
 
 import android.annotation.SuppressLint
+import android.arch.lifecycle.Observer
 import android.arch.lifecycle.ViewModelProviders
 import android.content.Context
 import android.content.Intent
@@ -100,6 +101,7 @@ class MainActivity : AppCompatActivity() {
 
         viewModel = ViewModelProviders.of(this).get(MainViewModel::class.java).apply {
             moreButtonVisibility.value = View.GONE
+            decodeMode.value = DecodeMode.Normal
         }
 
         binding = DataBindingUtil.setContentView<MainActivityBinding>(this, R.layout.activity_main).apply {
@@ -407,8 +409,8 @@ class MainActivity : AppCompatActivity() {
 
                     cropped.print()
 
-                    cropped.unwindToByteBuffer()
                     val output = arrayOf(FloatArray(2679))
+                    cropped.unwindToByteBuffer()
 
                     interpreter.run(imgData, output)
 
@@ -534,7 +536,11 @@ class MainActivity : AppCompatActivity() {
         for (row in 0 until height()) {
             for (col in 0 until width()) {
                 val byte = this[row, col]
-                array.add(if (byte.isBlack()) 1L else 0L)
+                if (viewModel.decodeMode.value === DecodeMode.Inverted) {
+                    array.add(if (byte.isWhite()) 1L else 0L)
+                } else {
+                    array.add(if (byte.isBlack()) 1L else 0L)
+                }
             }
         }
         return array
