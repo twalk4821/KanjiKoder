@@ -1,11 +1,11 @@
 package tylerwalker.io.kanjireader
 
 import android.annotation.SuppressLint
-import android.arch.lifecycle.Observer
-import android.arch.lifecycle.ViewModelProviders
+import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProviders
 import android.content.Context
 import android.content.Intent
-import android.databinding.DataBindingUtil
+import androidx.databinding.DataBindingUtil
 import android.graphics.Camera
 import android.graphics.ImageFormat
 import android.graphics.ImageFormat.YUV_420_888
@@ -14,7 +14,7 @@ import android.graphics.Rect
 import android.hardware.camera2.*
 import android.hardware.camera2.CameraDevice.TEMPLATE_PREVIEW
 import android.media.ImageReader
-import android.support.v7.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
 import android.util.Size
@@ -34,7 +34,7 @@ import java.nio.FloatBuffer
 import java.nio.ByteOrder.nativeOrder
 import kotlin.math.log
 import android.hardware.camera2.CaptureRequest
-import android.support.v4.view.MotionEventCompat.getPointerCount
+import androidx.core.view.MotionEventCompat.getPointerCount
 import android.hardware.camera2.CameraCharacteristics
 import android.system.Os.close
 import android.util.AttributeSet

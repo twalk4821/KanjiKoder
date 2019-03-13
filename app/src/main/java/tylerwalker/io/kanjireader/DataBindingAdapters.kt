@@ -1,6 +1,6 @@
 package tylerwalker.io.kanjireader
 
-import android.databinding.BindingAdapter
+import androidx.databinding.BindingAdapter
 import android.widget.TextView
 
 @BindingAdapter("android:textColor")

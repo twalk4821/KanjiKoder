@@ -8,8 +8,8 @@ import android.view.DragEvent
 import android.view.View
 import kotlin.math.roundToInt
 import android.content.ClipData
-import android.support.v4.content.ContextCompat
-import android.support.v4.view.ViewCompat.startDragAndDrop
+import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat.startDragAndDrop
 import android.util.DisplayMetrics
 import android.view.MotionEvent
 
