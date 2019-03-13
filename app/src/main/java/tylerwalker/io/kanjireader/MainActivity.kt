@@ -458,7 +458,12 @@ class MainActivity : AppCompatActivity() {
 
         tooltip.offsetY = drawnSize.y / 2F
 
-        tooltip.show(slidingWindow, Tooltip.Gravity.TOP, false)
+        tooltip.doOnHidden {
+            sharedPreferences
+                    .edit()
+                    .putBoolean(SHARED_PREFERENCES_FTX_KEY, true)
+                    .apply()
+        }.show(slidingWindow, Tooltip.Gravity.TOP, false)
     }
 
     private fun Array<Size>.getDecodeSize(): Size {
