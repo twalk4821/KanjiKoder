@@ -65,7 +65,7 @@ class SlidingWindow(context: Context, attrs: AttributeSet): View(context, attrs)
                                 .toScreenPixels()
             }
 
-    private fun getDrawnSize(): PointF =
+    fun getDrawnSize(): PointF =
         PointF(RECT_SIZE, RECT_SIZE).toPreviewPixels().toScreenPixels()
 
     fun getDecodeRect(): RectF = rect.apply {
@@ -97,7 +97,7 @@ class SlidingWindow(context: Context, attrs: AttributeSet): View(context, attrs)
 
     private var startingPosition = PointF(0F, 0F)
     private var dragStart = PointF(0F, 0F)
-    private var drawPosition = PointF(0F, 0F)
+    var drawPosition = PointF(0F, 0F)
         set(value) {
             field = value
             invalidate()

@@ -5,6 +5,7 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import androidx.databinding.DataBindingUtil
 import android.graphics.Camera
 import android.graphics.ImageFormat
@@ -36,12 +37,18 @@ import kotlin.math.log
 import android.hardware.camera2.CaptureRequest
 import androidx.core.view.MotionEventCompat.getPointerCount
 import android.hardware.camera2.CameraCharacteristics
+import android.preference.PreferenceManager
 import android.system.Os.close
 import android.util.AttributeSet
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
+import androidx.core.graphics.component1
+import androidx.core.graphics.component2
+import androidx.core.graphics.unaryMinus
 import io.reactivex.disposables.CompositeDisposable
+import it.sephiroth.android.library.xtooltip.ClosePolicy
+import it.sephiroth.android.library.xtooltip.Tooltip
 import kotlinx.android.synthetic.main.activity_main.view.*
 import tylerwalker.io.kanjireader.DictionaryActivity.Companion.KANJI_KEY
 import tylerwalker.io.kanjireader.DictionaryActivity.Companion.KUN_KEY
@@ -60,6 +67,9 @@ typealias SoftmaxArray = FloatArray
 
 @ExperimentalUnsignedTypes
 class MainActivity : AppCompatActivity() {
+    companion object {
+        private const val SHARED_PREFERENCES_FTX_KEY = "ftx"
+    }
     private var userRequestedInstall: Boolean = true
     lateinit var camera: CameraDevice
     private lateinit var cameraManager: CameraManager
@@ -93,6 +103,8 @@ class MainActivity : AppCompatActivity() {
 
     lateinit var viewModel: MainViewModel
     lateinit var binding: MainActivityBinding
+
+    lateinit var sharedPreferences: SharedPreferences
 
     private var compositeDisposable = CompositeDisposable()
 
@@ -165,6 +177,8 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Throwable) {
             log("$e", true)
         }
+
+        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
     }
 
     override fun onStart() {
@@ -341,6 +355,11 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     camera.createCaptureSession(mutableListOf(previewSurface, recordingSurface), captureCallback, Handler { true })
+
+                    val hasSeenFTX = sharedPreferences.getBoolean(SHARED_PREFERENCES_FTX_KEY, false)
+                    if (!hasSeenFTX) {
+                        showFirstTooltip()
+                    }
                 }
             }, Handler { true })
         }
@@ -377,6 +396,69 @@ class MainActivity : AppCompatActivity() {
             log("surfaceCreated()")
             startCameraSession()
         }
+    }
+
+    private fun showFirstTooltip() {
+        val drawnSize = slidingWindow.getDrawnSize()
+
+        val tooltip = Tooltip.Builder(this)
+                .anchor(constraintLayout.width / 2, constraintLayout.height / 2)
+                .text("Hold down and drag anywhere to adjust the frame.")
+                .maxWidth(constraintLayout.width / 2)
+                .floatingAnimation(Tooltip.Animation.DEFAULT)
+                .styleId(R.style.KanjiTooltip)
+                .showDuration(10000L)
+                .closePolicy(ClosePolicy.TOUCH_ANYWHERE_CONSUME)
+                .create()
+
+        tooltip.offsetY = drawnSize.y / 2F
+
+        tooltip.doOnHidden {
+            Handler().postDelayed({
+                showSecondTooltip()
+            }, 3000)
+        }.show(slidingWindow, Tooltip.Gravity.TOP, false)
+
+    }
+
+    private fun showSecondTooltip() {
+        val drawnSize = slidingWindow.getDrawnSize()
+
+        val tooltip = Tooltip.Builder(this)
+                .anchor(constraintLayout.width / 4, (constraintLayout.height * .75).roundToInt())
+                .text("Use two fingers to zoom. Try to get one Kanji within the frame at a time.")
+                .maxWidth(constraintLayout.width / 2)
+                .floatingAnimation(Tooltip.Animation.DEFAULT)
+                .styleId(R.style.KanjiTooltip)
+                .showDuration(10000L)
+                .closePolicy(ClosePolicy.TOUCH_ANYWHERE_CONSUME)
+                .create()
+
+        tooltip.offsetY = drawnSize.y / 2F
+
+        tooltip.doOnHidden {
+            Handler().postDelayed({
+                showThirdTooltip()
+            }, 3000)
+        }.show(slidingWindow, Tooltip.Gravity.TOP, false)
+    }
+
+    private fun showThirdTooltip() {
+        val drawnSize = slidingWindow.getDrawnSize()
+
+        val tooltip = Tooltip.Builder(this)
+                .anchor(constraintLayout.width / 2, constraintLayout.height - 100)
+                .text("When you are ready, touch here to analyze.")
+                .maxWidth(constraintLayout.width / 2)
+                .floatingAnimation(Tooltip.Animation.DEFAULT)
+                .styleId(R.style.KanjiTooltip)
+                .showDuration(10000L)
+                .closePolicy(ClosePolicy.TOUCH_ANYWHERE_CONSUME)
+                .create()
+
+        tooltip.offsetY = drawnSize.y / 2F
+
+        tooltip.show(slidingWindow, Tooltip.Gravity.TOP, false)
     }
 
     private fun Array<Size>.getDecodeSize(): Size {

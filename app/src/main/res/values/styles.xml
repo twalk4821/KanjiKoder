@@ -11,4 +11,9 @@
     <style name="SplashTheme" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowBackground">@drawable/splash</item>
     </style>
+
+    <style name="KanjiTooltip" parent="ToolTipLayoutDefaultStyle">
+        <item name="ttlm_strokeColor" format="color" >@color/japan_red</item>
+        <item name="ttlm_backgroundColor" format="color">@color/japan_red</item>
+    </style>
 </resources>
