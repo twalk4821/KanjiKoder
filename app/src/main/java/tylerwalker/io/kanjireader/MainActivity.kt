@@ -1,13 +1,11 @@
 package tylerwalker.io.kanjireader
 
 import android.annotation.SuppressLint
-import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import androidx.databinding.DataBindingUtil
-import android.graphics.Camera
 import android.graphics.ImageFormat
 import android.graphics.ImageFormat.YUV_420_888
 import android.graphics.PointF
@@ -21,7 +19,6 @@ import android.os.Handler
 import android.util.Size
 import android.view.Surface
 import android.view.SurfaceHolder
-import android.widget.Button
 import android.widget.Toast
 import kotlinx.android.synthetic.main.activity_main.*
 import org.opencv.core.Mat
@@ -31,30 +28,19 @@ import org.opencv.android.OpenCVLoader
 import org.tensorflow.lite.Interpreter
 import java.lang.IndexOutOfBoundsException
 import java.nio.ByteBuffer
-import java.nio.FloatBuffer
 import java.nio.ByteOrder.nativeOrder
-import kotlin.math.log
 import android.hardware.camera2.CaptureRequest
-import androidx.core.view.MotionEventCompat.getPointerCount
 import android.hardware.camera2.CameraCharacteristics
 import android.preference.PreferenceManager
-import android.system.Os.close
-import android.util.AttributeSet
-import android.util.Log
 import android.view.MotionEvent
 import android.view.View
-import androidx.core.graphics.component1
-import androidx.core.graphics.component2
-import androidx.core.graphics.unaryMinus
 import io.reactivex.disposables.CompositeDisposable
 import it.sephiroth.android.library.xtooltip.ClosePolicy
 import it.sephiroth.android.library.xtooltip.Tooltip
-import kotlinx.android.synthetic.main.activity_main.view.*
 import tylerwalker.io.kanjireader.DictionaryActivity.Companion.KANJI_KEY
 import tylerwalker.io.kanjireader.DictionaryActivity.Companion.KUN_KEY
 import tylerwalker.io.kanjireader.DictionaryActivity.Companion.MEANING_KEY
 import tylerwalker.io.kanjireader.DictionaryActivity.Companion.ON_KEY
-import tylerwalker.io.kanjireader.R.id.*
 import tylerwalker.io.kanjireader.databinding.MainActivityBinding
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -70,7 +56,6 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val SHARED_PREFERENCES_FTX_KEY = "ftx"
     }
-    private var userRequestedInstall: Boolean = true
     lateinit var camera: CameraDevice
     private lateinit var cameraManager: CameraManager
     lateinit var cameraCharacteristics: CameraCharacteristics
@@ -466,18 +451,6 @@ class MainActivity : AppCompatActivity() {
         }.show(slidingWindow, Tooltip.Gravity.TOP, false)
     }
 
-    private fun Array<Size>.getDecodeSize(): Size {
-        var offset = 10
-        var decodeSize: Size? = null
-
-        while (decodeSize == null) {
-            decodeSize = try { get(lastIndex - offset) } catch (e: IndexOutOfBoundsException) { null }
-            offset -= 1
-        }
-
-        return decodeSize
-    }
-
     /**
      * Decode image to [PixelArray]
      */
@@ -504,7 +477,7 @@ class MainActivity : AppCompatActivity() {
                     val predictions = getTop10Predictions(output = output[0], shouldPrint = true)
                     val (prediction, likelihood) = predictions[0]
                     val topPrediction = getKanji(prediction)
-                    log("top prediction: ${topPrediction}")
+                    log("top prediction: $topPrediction")
 
                     viewModel.character.value = topPrediction?.character
                     viewModel.onReading.value = topPrediction?.onReading
@@ -543,33 +516,6 @@ class MainActivity : AppCompatActivity() {
         return result
     }
 
-    private fun PixelArray.compress(): PixelArray {
-        val result: PixelArray = mutableListOf()
-
-        val currentMap = convertToMap()
-
-        var row = 0
-        while (row + 1 < currentMap.size) {
-            var col = 0
-            while (col + 1 < currentMap.size) {
-                val topLeft = currentMap[row][col]
-                val topRight = currentMap[row + 1][col]
-                val bottomLeft = currentMap[row][col + 1]
-                val bottomRight = currentMap[row + 1][col + 1]
-
-                val pixel = if (topLeft + topRight + bottomLeft + bottomRight > 2) 1L else 0L
-
-                result.add(pixel)
-
-                col += 2
-            }
-            row += 2
-        }
-
-
-        return result
-    }
-
     private fun getKanji(label: Int): Kanji? {
         return kanji.find { it.label == label }
     }
@@ -603,16 +549,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         return predictions
-    }
-
-    private fun getTop10Predictions(predictions: MutableList<Prediction>): MutableList<Prediction> {
-        return  predictions.apply {
-            sortBy {
-                it.second
-            }
-
-            subList(0, 10)
-        }
     }
 
     /**

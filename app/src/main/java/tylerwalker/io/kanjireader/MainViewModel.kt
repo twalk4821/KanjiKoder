@@ -23,14 +23,6 @@ class MainViewModel(val app: Application): AndroidViewModel(app) {
         }
     }
 
-    val predictionCharacterText = MediatorLiveData<String>().apply {
-        addSource(character) {
-            it?.let { predictedCharacter ->
-                value = app.getString(R.string.prediction_character_template, predictedCharacter)
-            }
-        }
-    }
-
     val predictionReadingsText = MediatorLiveData<String>().apply {
         var lastOnReading: String? = null
         var lastKunReading: String? = null
@@ -79,41 +71,6 @@ class MainViewModel(val app: Application): AndroidViewModel(app) {
         }
     }
 
-    val predictionLikelihoodText = MediatorLiveData<String>().apply {
-        addSource(likelihood) {
-            it?.let { predictionLikelihood ->
-                value = app.getString(R.string.prediction_likelihood_template, predictionLikelihood.toString())
-            }
-        }
-    }
-
-    val predictionConfidenceText = MediatorLiveData<String>().apply {
-        addSource(likelihood) {
-            it?.let { predictionLikelihood ->
-                value = when {
-                    predictionLikelihood == 0F -> "???"
-                    predictionLikelihood < .25F -> app.getString(R.string.prediction_confidence_weak)
-                    predictionLikelihood < .50F -> app.getString(R.string.prediction_confidence_fair)
-                    predictionLikelihood < .75F -> app.getString(R.string.prediction_confidence_strong)
-                    else -> app.getString(R.string.prediction_confidence_very_strong)
-                }
-            }
-        }
-    }
-
-    val predictionConfidenceColor = MediatorLiveData<Int>().apply {
-        addSource(likelihood) {
-            it?.let { predictionLikelihood ->
-                value = when {
-                    predictionLikelihood < .25F -> R.color.confidence_weak
-                    predictionLikelihood < .50F -> R.color.confidence_fair
-                    predictionLikelihood < .75F -> R.color.confidence_strong
-                    else -> R.color.confidence_very_strong
-                }
-            }
-        }
-    }
-
     val moreButtonVisibility = MediatorLiveData<Int>().apply {
         addSource(character) {
             it?.let {
@@ -125,7 +82,6 @@ class MainViewModel(val app: Application): AndroidViewModel(app) {
     }
 
     fun goToDictionary() { navigationProcessor.onNext(NavigationEvent.Dictionary) }
-    fun goToMain() { navigationProcessor.onNext(NavigationEvent.Main) }
     fun toggleInvertedMode() { decodeMode.value.let {
         when (it) {
             DecodeMode.Normal -> decodeMode.postValue(DecodeMode.Inverted)

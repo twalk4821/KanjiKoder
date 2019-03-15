@@ -12,6 +12,5 @@ class DictionaryViewModel(val app: Application): AndroidViewModel(app) {
     val onReading = MutableLiveData<String>()
     val meaning = MutableLiveData<String>()
 
-    fun goToDictionary() { navigationProcessor.onNext(NavigationEvent.Dictionary) }
     fun goToMain() { navigationProcessor.onNext(NavigationEvent.Main) }
 }
