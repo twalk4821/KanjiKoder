@@ -12,6 +12,8 @@ class MainViewModel(val app: Application): AndroidViewModel(app) {
     val onReading = MutableLiveData<String>()
     val meaning = MutableLiveData<String>()
     val likelihood = MutableLiveData<Float>()
+    val onReadingRomaji = MutableLiveData<String>()
+    val kunReadingRomaji = MutableLiveData<String>()
     val decodeMode = MutableLiveData<DecodeMode>()
     val decodeModeButtonText = MediatorLiveData<String>().apply {
         addSource(decodeMode) {

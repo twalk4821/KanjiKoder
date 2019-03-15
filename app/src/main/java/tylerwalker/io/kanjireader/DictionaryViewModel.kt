@@ -11,6 +11,28 @@ class DictionaryViewModel(val app: Application): AndroidViewModel(app) {
     val kunReading = MutableLiveData<String>()
     val onReading = MutableLiveData<String>()
     val meaning = MutableLiveData<String>()
+    val onReadingRomaji = MutableLiveData<String>()
+    val kunReadingRomaji = MutableLiveData<String>()
+
+    val onReadingRomajiText = MediatorLiveData<String>().apply {
+        addSource(onReadingRomaji) {
+            if (it == "null") {
+                postValue("")
+            } else {
+                postValue("(${it.trim()})")
+            }
+        }
+    }
+
+    val kunReadingRomajiText = MediatorLiveData<String>().apply {
+        addSource(kunReadingRomaji) {
+            if (it == "null") {
+                postValue("")
+            } else {
+                postValue("(${it.trim()})")
+            }
+        }
+    }
 
     fun goToMain() { navigationProcessor.onNext(NavigationEvent.Main) }
 }

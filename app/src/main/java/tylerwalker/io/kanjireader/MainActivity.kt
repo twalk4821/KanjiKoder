@@ -39,8 +39,10 @@ import it.sephiroth.android.library.xtooltip.ClosePolicy
 import it.sephiroth.android.library.xtooltip.Tooltip
 import tylerwalker.io.kanjireader.DictionaryActivity.Companion.KANJI_KEY
 import tylerwalker.io.kanjireader.DictionaryActivity.Companion.KUN_KEY
+import tylerwalker.io.kanjireader.DictionaryActivity.Companion.KUN_ROMAJI_KEY
 import tylerwalker.io.kanjireader.DictionaryActivity.Companion.MEANING_KEY
 import tylerwalker.io.kanjireader.DictionaryActivity.Companion.ON_KEY
+import tylerwalker.io.kanjireader.DictionaryActivity.Companion.ON_ROMAJI_KEY
 import tylerwalker.io.kanjireader.databinding.MainActivityBinding
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -176,6 +178,8 @@ class MainActivity : AppCompatActivity() {
                     putExtra(ON_KEY, viewModel.onReading.value)
                     putExtra(KUN_KEY, viewModel.kunReading.value)
                     putExtra(MEANING_KEY, viewModel.meaning.value)
+                    putExtra(ON_ROMAJI_KEY, viewModel.onReadingRomaji.value)
+                    putExtra(KUN_ROMAJI_KEY, viewModel.kunReadingRomaji.value)
                 })
             }
         })
@@ -484,6 +488,8 @@ class MainActivity : AppCompatActivity() {
                     viewModel.kunReading.value = topPrediction?.kunReading
                     viewModel.meaning.value = topPrediction?.meaning
                     viewModel.likelihood.value = likelihood
+                    viewModel.kunReadingRomaji.value = topPrediction?.kunRomajiReading
+                    viewModel.onReadingRomaji.value = topPrediction?.onRomajiReading
 
                     isStreamingData = false
 

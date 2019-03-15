@@ -15,6 +15,8 @@ class DictionaryActivity : AppCompatActivity() {
         const val ON_KEY = "on"
         const val KUN_KEY = "kun"
         const val MEANING_KEY = "meaning"
+        const val ON_ROMAJI_KEY = "on_romaji"
+        const val KUN_ROMAJI_KEY = "kun_romaji"
     }
 
     lateinit var viewModel: DictionaryViewModel
@@ -29,12 +31,16 @@ class DictionaryActivity : AppCompatActivity() {
         val onReading = intent.getStringExtra(ON_KEY)
         val kunReading = intent.getStringExtra(KUN_KEY)
         val meaning = intent.getStringExtra(MEANING_KEY)
+        val onRomaji = intent.getStringExtra(ON_ROMAJI_KEY)
+        val kumRomaji = intent.getStringExtra(KUN_ROMAJI_KEY)
 
         viewModel = ViewModelProviders.of(this).get(DictionaryViewModel::class.java).apply {
             character.value = kanji
             this.onReading.value = onReading
             this.kunReading.value = kunReading
             this.meaning.value = meaning
+            this.onReadingRomaji.value = onRomaji
+            this.kunReadingRomaji.value = kumRomaji
         }
 
         binding = DataBindingUtil.setContentView<DictionaryActivityBinding>(this, R.layout.activity_dictionary).apply {
