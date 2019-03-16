@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layout>
+
     <data class="MainActivityBinding">
         <import type="tylerwalker.io.kanjireader.NavigationEvent" />
         <variable
@@ -40,6 +41,7 @@
                 android:layout_height="match_parent" />
 
             <TextView
+                android:id="@+id/decode_mode_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
@@ -60,6 +62,18 @@
                 android:onCheckedChanged="@{viewModel::onCheckedChangedListener}"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
+
+            <ImageView
+                android:id="@+id/decode_mode_help_icon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                app:layout_constraintBottom_toBottomOf="@+id/button"
+                app:layout_constraintEnd_toStartOf="@+id/decode_mode_text"
+                app:layout_constraintTop_toTopOf="@+id/button"
+                app:srcCompat="@drawable/ic_baseline_help_outline_24px"
+                android:tint="@color/japan_red"
+                android:onClick="@{viewModel::showDecodeModeHelp}"/>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 

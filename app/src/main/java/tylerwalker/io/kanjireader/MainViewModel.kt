@@ -19,9 +19,9 @@ class MainViewModel(val app: Application): AndroidViewModel(app) {
     val decodeModeButtonText = MediatorLiveData<String>().apply {
         addSource(decodeMode) {
             if (it === DecodeMode.Inverted) {
-                postValue("Text detection mode: White")
+                postValue("Detecting white text")
             } else {
-                postValue("Text detection mode: Black")
+                postValue("Detecting black text")
             }
         }
     }
@@ -31,6 +31,10 @@ class MainViewModel(val app: Application): AndroidViewModel(app) {
             true -> decodeMode.postValue(DecodeMode.Inverted)
             else -> decodeMode.postValue(DecodeMode.Normal)
         }
+    }
+
+    fun showDecodeModeHelp(view: View) {
+        uiEventProcessor.onNext(UIEvent.ShowDecodeHelp)
     }
 
     val predictionReadingsText = MediatorLiveData<String>().apply {

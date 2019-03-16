@@ -18,3 +18,10 @@ sealed class DecodeMode {
     object Normal: DecodeMode()
     object Inverted: DecodeMode()
 }
+
+sealed class UIEvent {
+    object ShowDecodeHelp: UIEvent()
+}
+
+val uiEventProcessor = PublishProcessor.create<UIEvent>().toSerialized()
+val uiEventFlowable = uiEventProcessor as Flowable<UIEvent>

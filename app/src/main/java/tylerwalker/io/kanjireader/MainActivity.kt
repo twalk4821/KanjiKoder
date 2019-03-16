@@ -43,6 +43,7 @@ import tylerwalker.io.kanjireader.DictionaryActivity.Companion.KUN_ROMAJI_KEY
 import tylerwalker.io.kanjireader.DictionaryActivity.Companion.MEANING_KEY
 import tylerwalker.io.kanjireader.DictionaryActivity.Companion.ON_KEY
 import tylerwalker.io.kanjireader.DictionaryActivity.Companion.ON_ROMAJI_KEY
+import tylerwalker.io.kanjireader.R.id.slidingWindow
 import tylerwalker.io.kanjireader.databinding.MainActivityBinding
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -181,6 +182,12 @@ class MainActivity : AppCompatActivity() {
                     putExtra(ON_ROMAJI_KEY, viewModel.onReadingRomaji.value)
                     putExtra(KUN_ROMAJI_KEY, viewModel.kunReadingRomaji.value)
                 })
+            }
+        })
+
+        compositeDisposable.add(uiEventFlowable.subscribe {
+            when (it) {
+                UIEvent.ShowDecodeHelp -> showToggleHelpTooltip()
             }
         })
     }
@@ -453,6 +460,20 @@ class MainActivity : AppCompatActivity() {
                     .putBoolean(SHARED_PREFERENCES_FTX_KEY, true)
                     .apply()
         }.show(slidingWindow, Tooltip.Gravity.TOP, false)
+    }
+
+    private fun showToggleHelpTooltip() {
+
+        Tooltip.Builder(this)
+                .anchor(decode_mode_help_icon, 0, 0, true)
+                .text("Toggle to switch between white and black detection modes.")
+                .maxWidth(constraintLayout.width / 2)
+                .floatingAnimation(Tooltip.Animation.DEFAULT)
+                .styleId(R.style.KanjiTooltip)
+                .showDuration(10000L)
+                .closePolicy(ClosePolicy.TOUCH_ANYWHERE_CONSUME)
+                .create()
+                .show(decode_mode_help_icon, Tooltip.Gravity.BOTTOM, true)
     }
 
     /**
