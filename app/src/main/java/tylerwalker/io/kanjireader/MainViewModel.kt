@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import android.view.View
+import androidx.core.content.ContextCompat
 
 class MainViewModel(val app: Application): AndroidViewModel(app) {
     val character = MutableLiveData<String>()
@@ -18,10 +19,17 @@ class MainViewModel(val app: Application): AndroidViewModel(app) {
     val decodeModeButtonText = MediatorLiveData<String>().apply {
         addSource(decodeMode) {
             if (it === DecodeMode.Inverted) {
-                postValue("Switch to normal mode")
+                postValue("Text detection mode: White")
             } else {
-                postValue("Switch to inverted mode")
+                postValue("Text detection mode: Black")
             }
+        }
+    }
+
+    fun onCheckedChangedListener(view: View, isChecked: Boolean) {
+        when (isChecked) {
+            true -> decodeMode.postValue(DecodeMode.Inverted)
+            else -> decodeMode.postValue(DecodeMode.Normal)
         }
     }
 
