@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">KanjiKoder</string>
+    <string name="app_name">Kanji Reader</string>
     <string name="prediction_character_template">Kanji: %1$s</string>
     <string name="prediction_meaning_template">Meaning: %1$s</string>
     <string name="prediction_likelihood_template">Likelihood: %1$s</string>
@@ -16,4 +16,5 @@
     <string name="save">Save</string>
     <string name="back">Back</string>
     <string name="text_color">Text Color</string>
+    <string name="help">Help</string>
 </resources>

@@ -65,15 +65,16 @@
 
             <ImageView
                 android:id="@+id/decode_mode_help_icon"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
                 android:layout_marginEnd="8dp"
+                android:onClick="@{viewModel::showDecodeModeHelp}"
+                android:tint="@color/japan_red"
+                android:contentDescription="@string/help"
                 app:layout_constraintBottom_toBottomOf="@+id/button"
                 app:layout_constraintEnd_toStartOf="@+id/decode_mode_text"
                 app:layout_constraintTop_toTopOf="@+id/button"
-                app:srcCompat="@drawable/ic_baseline_help_outline_24px"
-                android:tint="@color/japan_red"
-                android:onClick="@{viewModel::showDecodeModeHelp}"/>
+                app:srcCompat="@drawable/ic_baseline_help_outline_24px" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -93,50 +94,53 @@
                 android:id="@+id/character_text"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:fontFamily="@font/nova_regular"
                 android:text="@{viewModel.character}"
-                android:textSize="32sp"
                 android:textColor="@color/strong_red"
-                app:layout_constraintStart_toStartOf="parent"
+                android:textSize="32sp"
                 app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
             <TextView
                 android:id="@+id/readings_text"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:fontFamily="@font/nova_regular"
                 android:text="@{viewModel.predictionReadingsText}"
-                android:textSize="20sp"
                 android:textColor="@color/strong_red"
-                app:layout_constraintStart_toStartOf="parent"
+                android:textSize="20sp"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/character_text"/>
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/character_text" />
 
             <TextView
                 android:id="@+id/meaning_text"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
+                android:fontFamily="@font/nova_regular"
                 android:text="@{viewModel.predictionMeaningText}"
-                android:textSize="20sp"
                 android:textColor="@color/white"
-                app:layout_constraintStart_toStartOf="parent"
+                android:textSize="20sp"
                 app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/readings_text" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/more"
-                android:textColor="@color/dark_gray"
+                android:layout_marginBottom="8dp"
                 android:clickable="true"
                 android:focusable="true"
+                android:fontFamily="@font/nova_regular"
                 android:onClick="@{view -> viewModel.goToDictionary()}"
+                android:text="@string/more"
+                android:textColor="@color/dark_gray"
                 android:visibility="@{viewModel.moreButtonVisibility}"
-                android:layout_marginBottom="8dp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/meaning_text"
-                />
+                app:layout_constraintTop_toBottomOf="@+id/meaning_text" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -158,13 +162,13 @@
             android:id="@+id/camera_button_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:fontFamily="@font/nova_regular"
             android:text="@string/camera_button_quick_scan"
             android:textColor="@color/white"
-            android:layout_marginBottom="8dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            />
+            app:layout_constraintStart_toStartOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </layout>
