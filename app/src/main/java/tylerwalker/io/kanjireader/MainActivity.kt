@@ -276,11 +276,10 @@ class MainActivity : AppCompatActivity() {
             val firstCamera = cameraIdList[0]
 
             openCamera(firstCamera, object: CameraDevice.StateCallback() {
-                override fun onDisconnected(p0: CameraDevice) { log("onDisconnected()") }
-                override fun onError(p0: CameraDevice, p1: Int) { log("onError()") }
+                override fun onDisconnected(p0: CameraDevice) { }
+                override fun onError(p0: CameraDevice, p1: Int) { }
 
                 override fun onOpened(cam: CameraDevice) {
-                    log("onOpened()")
                     camera = cam
                     cameraCharacteristics = getCameraCharacteristics(camera.id)
                     val configMap = cameraCharacteristics[CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP]
@@ -309,9 +308,6 @@ class MainActivity : AppCompatActivity() {
                     previewSize = yuvSizes.last()
                     decodeSize = yuvSizes.last()
 
-                    log("decode size:, width: ${decodeSize.width}, height: ${decodeSize.height}")
-                    log("preview size:, width: ${previewSize.width}, height: ${previewSize.height}")
-
                     val displayRotation = windowManager.defaultDisplay.rotation
                     val swappedDimensions = areDimensionsSwapped(displayRotation = displayRotation)
 
@@ -334,10 +330,9 @@ class MainActivity : AppCompatActivity() {
 
 
                     captureCallback = object : CameraCaptureSession.StateCallback() {
-                        override fun onConfigureFailed(session: CameraCaptureSession) { log("onConfigureFailed()") }
+                        override fun onConfigureFailed(session: CameraCaptureSession) { }
 
                         override fun onConfigured(session: CameraCaptureSession) {
-                            log("onConfigured()")
 
                             previewRequestBuilder = camera.createCaptureRequest(TEMPLATE_PREVIEW).apply {
                                 addTarget(recordingSurface)
@@ -385,11 +380,10 @@ class MainActivity : AppCompatActivity() {
      * Start the camera session
      */
     private val surfaceReadyCallback = object: SurfaceHolder.Callback {
-        override fun surfaceChanged(p0: SurfaceHolder?, p1: Int, p2: Int, p3: Int) { log("surfaceChanged()") }
-        override fun surfaceDestroyed(p0: SurfaceHolder?) { log("surfaceDestroyed()") }
+        override fun surfaceChanged(p0: SurfaceHolder?, p1: Int, p2: Int, p3: Int) { }
+        override fun surfaceDestroyed(p0: SurfaceHolder?) { }
 
         override fun surfaceCreated(p0: SurfaceHolder?) {
-            log("surfaceCreated()")
             startCameraSession()
         }
     }
@@ -486,7 +480,6 @@ class MainActivity : AppCompatActivity() {
                 val rgbaMat = toMat_RGBA()
 
                 if (isStreamingData) {
-                    log("start decode: ${rgbaMat.size()}")
 
                     val binary = rgbaMat.decodeRGBAToBinary()
                     val rotated = binary.rotate(decodeSize.width)
@@ -502,7 +495,6 @@ class MainActivity : AppCompatActivity() {
                     val predictions = getTop10Predictions(output = output[0], shouldPrint = true)
                     val (prediction, likelihood) = predictions[0]
                     val topPrediction = getKanji(prediction)
-                    log("top prediction: $topPrediction")
 
                     viewModel.character.value = topPrediction?.character
                     viewModel.onReading.value = topPrediction?.onReading
@@ -514,7 +506,6 @@ class MainActivity : AppCompatActivity() {
 
                     isStreamingData = false
 
-                    log("end decode")
                 }
             } catch (e: Throwable) {
                 isStreamingData = false
@@ -528,8 +519,6 @@ class MainActivity : AppCompatActivity() {
     private fun PixelArray.cropToWindow(): PixelArray {
         val map = convertToMap(decodeSize.height)
         val decodeRect = slidingWindow.getDecodeRect()
-
-        log("decode rect: ${decodeRect.left}, ${decodeRect.top}, ${decodeRect.right}, ${decodeRect.bottom}")
 
         val result = mutableListOf<Long>()
 
@@ -571,7 +560,6 @@ class MainActivity : AppCompatActivity() {
         if (shouldPrint) {
             predictions.forEachIndexed { index, prediction ->
                 val (label, likelihood) = prediction
-                log("Prediction #${index + 1} -- label: $label, likelihood: $likelihood")
             }
         }
 
