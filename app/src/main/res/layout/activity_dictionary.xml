@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layout xmlns:android="http://schemas.android.com/apk/res/android"
+<layout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools">
+
     <data class="DictionaryActivityBinding">
         <variable
             name="viewModel"
@@ -18,8 +20,8 @@
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/header_layout"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:background="@color/white"
+            android:layout_height="64dp"
+            android:background="@color/japan_red"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
@@ -33,10 +35,12 @@
                 android:layout_marginBottom="8dp"
                 android:contentDescription="@string/back"
                 android:onClick="@{view -> viewModel.goToMain()}"
+                android:tint="@color/white"
+                android:background="@color/clear"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:srcCompat="@android:drawable/ic_media_rew" />
+                app:srcCompat="@drawable/ic_back" />
 
             <TextView
                 android:id="@+id/textView"
@@ -47,8 +51,8 @@
                 android:layout_marginBottom="8dp"
                 android:fontFamily="@font/nova_bold"
                 android:text="@{viewModel.character}"
-                android:textColor="@android:color/black"
-                android:textSize="20sp"
+                android:textColor="@color/white"
+                android:textSize="32sp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toEndOf="@+id/back_button"

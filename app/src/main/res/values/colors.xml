@@ -21,4 +21,5 @@
     <color name="black">#000000</color>
     <color name="semi_transparent_background">#BF000000</color>
     <color name="semi_transparent_foreground">#1A000000</color>
+    <color name="clear">#00000000</color>
 </resources>
