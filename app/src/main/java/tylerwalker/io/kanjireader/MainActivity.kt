@@ -651,6 +651,8 @@ class MainActivity : AppCompatActivity() {
             }
             finish()
         }
+
+        recreate()
     }
 
     private val mLoaderCallback = object : BaseLoaderCallback(this) {
