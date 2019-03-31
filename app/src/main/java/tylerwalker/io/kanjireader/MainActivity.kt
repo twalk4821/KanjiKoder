@@ -44,6 +44,7 @@ import tylerwalker.io.kanjireader.DictionaryActivity.Companion.MEANING_KEY
 import tylerwalker.io.kanjireader.DictionaryActivity.Companion.ON_KEY
 import tylerwalker.io.kanjireader.DictionaryActivity.Companion.ON_ROMAJI_KEY
 import tylerwalker.io.kanjireader.R.id.slidingWindow
+import tylerwalker.io.kanjireader.SlidingWindow.Companion.RECT_SIZE
 import tylerwalker.io.kanjireader.databinding.MainActivityBinding
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -522,9 +523,12 @@ class MainActivity : AppCompatActivity() {
 
         val result = mutableListOf<Long>()
 
-        for (rowNumber in decodeRect.top.toInt() until decodeRect.bottom.toInt()) {
+        val rectTop = decodeRect.top.toInt()
+        val rectLeft = decodeRect.left.toInt()
+
+        for (rowNumber in rectTop until rectTop + RECT_SIZE.toInt()) {
             val row = map[rowNumber]
-            for (colNumber in decodeRect.left.toInt() until decodeRect.right.toInt()) {
+            for (colNumber in rectLeft until rectLeft + RECT_SIZE.toInt()) {
                 val pixel = row[colNumber]
                 result.add(pixel)
             }

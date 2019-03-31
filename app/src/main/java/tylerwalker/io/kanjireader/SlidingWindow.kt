@@ -14,7 +14,7 @@ import android.view.MotionEvent
 
 class SlidingWindow(context: Context, attrs: AttributeSet): View(context, attrs) {
     companion object {
-        private const val RECT_SIZE = 40F
+        const val RECT_SIZE = 40F
     }
 
     private val rect = RectF()
